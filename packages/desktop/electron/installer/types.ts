@@ -20,6 +20,7 @@ export type EngineId =
 /** Estrategia de instalación aplicada. */
 export type InstallMode =
   | "peruser" // silenciosa en el perfil del usuario, sin elevación
+  | "installshield-user" // InstallShield clásico: registra/reproduce Setup.iss
   | "portable" // extracción a %LOCALAPPDATA%\Programs + acceso directo
   | "winget-user" // winget install --scope user
   | "custom"; // línea de comandos editada por el usuario

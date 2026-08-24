@@ -3,6 +3,9 @@
  * por-usuario y silenciosa para cada motor, con su explicación.
  */
 import path from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { isLegacyInstallShield } from "./detect";
 import type { CommandPlan, DetectedInstaller, EngineId, PlanOptions } from "./types";
 
 const SYSTEM_ROOT = process.env.SystemRoot ?? process.env.windir ?? "C:\\Windows";
@@ -146,7 +149,8 @@ function nsisPlan({ detected, options }: BuildContext): CommandPlan {
 
 function installShieldPlan({ detected, options, logPath }: BuildContext): CommandPlan {
   const targetDir = options.targetDir || defaultTargetDir(detected.fileName);
-  const inner = `/qn /norestart ${PER_USER_MSI_PROPS.join(" ")} INSTALLDIR="${targetDir}" /L*v "${logPath}"`;
+  const escapedQuote = String.fromCharCode(92, 34); // \\\\" dentro de la sintaxis /v de InstallShield
+  const inner = `/qn /norestart ${PER_USER_MSI_PROPS.join(" ")} INSTALLDIR=${escapedQuote}${targetDir}${escapedQuote} /L*v ${escapedQuote}${logPath}${escapedQuote}`;
   const raw = `${quote(detected.path)} /s /v"${inner}"`;
   return {
     file: detected.path,
@@ -163,6 +167,64 @@ function installShieldPlan({ detected, options, logPath }: BuildContext): Comman
       { flag: "/s", meaning: "Silencia el envoltorio de InstallShield." },
       { flag: '/v"..."', meaning: "Pasa las banderas entre comillas al msiexec interno." },
       { flag: "MSIINSTALLPERUSER=1", meaning: "Instalación en el perfil del usuario actual." },
+    ],
+  };
+}
+
+function installShieldResponsePath(detected: DetectedInstaller, logPath: string): string {
+  const fingerprint = createHash("sha256")
+    .update(`${detected.path}\0${detected.sizeBytes}`)
+    .digest("hex")
+    .slice(0, 16);
+  return path.join(path.dirname(logPath), `installshield-${fingerprint}.iss`);
+}
+
+/**
+ * InstallShield 11/InstallScript no acepta /v"/qn" como un MSI. Necesita un
+ * Setup.iss con las respuestas de sus diálogos. La primera ejecución se hace
+ * en modo de grabación (el usuario elige una carpeta en su perfil); las
+ * siguientes pueden reproducirse de forma silenciosa.
+ */
+function legacyInstallShieldPlan({ detected, options, logPath }: BuildContext): CommandPlan {
+  const targetDir = options.targetDir || defaultTargetDir(detected.fileName);
+  const responsePath = installShieldResponsePath(detected, logPath);
+  const setupLogPath = path.join(path.dirname(logPath), `${path.basename(logPath, path.extname(logPath))}-setup.log`);
+  const hasResponse = existsSync(responsePath);
+  const raw = hasResponse
+    ? `${quote(detected.path)} /s /f1"${responsePath}" /f2"${setupLogPath}"`
+    : `${quote(detected.path)} /r /f1"${responsePath}" /f2"${setupLogPath}"`;
+  const responseWarning = hasResponse
+    ? "Se reutilizará el archivo de respuestas guardado; la carpeta elegida forma parte de ese archivo."
+    : "Primera ejecución asistida: InstallShield abrirá su asistente para registrar tus respuestas en Setup.iss.";
+  const noElevationWarning =
+    "La aplicación no eleva este proceso; si el script intenta escribir en Program Files, HKLM o instalar un servicio, Windows lo rechazará o mostrará una solicitud de administrador.";
+  const responsePathWarning = hasResponse
+    ? []
+    : [
+        `Selecciona ${targetDir} (o cualquier carpeta dentro de %LOCALAPPDATA%) cuando el asistente pregunte el destino.`,
+        "La instalación silenciosa genérica no es posible en InstallShield clásico sin registrar primero las respuestas.",
+      ];
+
+  return {
+    file: detected.path,
+    args: [],
+    rawCommandLine: raw,
+    preview: raw,
+    installerLogPath: setupLogPath,
+    targetDir,
+    mode: "installshield-user",
+    engine: "installshield",
+    requiresAdmin: false,
+    warnings: [responseWarning, noElevationWarning, ...responsePathWarning],
+    flagExplanations: [
+      {
+        flag: hasResponse ? "/s" : "/r",
+        meaning: hasResponse
+          ? "Reproduce silenciosamente las respuestas guardadas."
+          : "Registra las respuestas mientras completas el asistente por primera vez.",
+      },
+      { flag: "/f1", meaning: "Ruta absoluta del archivo Setup.iss dentro del perfil de la aplicación." },
+      { flag: "/f2", meaning: "Ruta del log de InstallShield." },
     ],
   };
 }
@@ -328,6 +390,9 @@ export function buildPlan(detected: DetectedInstaller, options: PlanOptions, log
   if (options.mode === "winget-user") return wingetPlan(ctx);
   if (options.mode === "portable") return portablePlan(ctx);
   if (options.mode === "custom") return customPlan(ctx);
+  if (options.mode === "installshield-user" && isLegacyInstallShield(detected.evidence)) {
+    return legacyInstallShieldPlan(ctx);
+  }
 
   if (detected.engine === "msu") {
     return {
