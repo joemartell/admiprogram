@@ -18,7 +18,7 @@ bun install
 Luego, desde la terminal, ejecuta un solo comando para iniciar la interfaz web y Electron:
 
 ```bash
-bun run dev:desktop            # web + Electron, usa http://localhost:3000 por defecto
+bun run dev:desktop            # web + Electron, usa http://localhost:4400 por defecto
 ```
 
 Si necesitas usar otro puerto, define `WEBSITE_URL` antes de iniciar Electron. Por ejemplo,
