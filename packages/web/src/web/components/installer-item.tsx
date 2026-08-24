@@ -88,6 +88,7 @@ export function InstallerItem({ item }: { item: QueueItem }) {
   const job = item.jobId ? jobs[item.jobId] : undefined;
   const running = job?.status === "ejecutando";
   const jobLogs = item.jobId ? (logs[item.jobId] ?? []) : [];
+  const missingWingetId = item.mode === "winget-user" && !item.wingetId.trim();
 
   useEffect(() => {
     if (!api) return;
@@ -99,6 +100,7 @@ export function InstallerItem({ item }: { item: QueueItem }) {
           mode: item.mode,
           targetDir: item.targetDir || undefined,
           customArgs: item.customArgs || undefined,
+          wingetId: item.wingetId.trim() || undefined,
         },
       })
       .then((result) => {
@@ -108,7 +110,7 @@ export function InstallerItem({ item }: { item: QueueItem }) {
     return () => {
       active = false;
     };
-  }, [api, item.detected, item.mode, item.targetDir, item.customArgs]);
+  }, [api, item.detected, item.mode, item.targetDir, item.customArgs, item.wingetId]);
 
   useEffect(() => {
     if (running) setShowLog(true);
@@ -154,9 +156,15 @@ export function InstallerItem({ item }: { item: QueueItem }) {
           ) : (
             <Button
               size="sm"
-              disabled={!available || busy}
+              disabled={!available || busy || missingWingetId}
               onClick={() => void runItem(item.key)}
-              title={available ? undefined : "Requiere la app de escritorio"}
+              title={
+                !available
+                  ? "Requiere la app de escritorio"
+                  : missingWingetId
+                    ? "Escribe el identificador exacto del paquete winget"
+                    : undefined
+              }
             >
               {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
               {job ? "Reintentar" : "Instalar"}
@@ -218,6 +226,22 @@ export function InstallerItem({ item }: { item: QueueItem }) {
             />
           </label>
         </div>
+
+        {item.mode === "winget-user" && (
+          <label className="block">
+            <span className="label-xs">Identificador del paquete winget</span>
+            <input
+              value={item.wingetId}
+              onChange={(event) => updateItem(item.key, { wingetId: event.target.value })}
+              placeholder="Microsoft.VisualStudioCode"
+              className="mt-1.5 w-full rounded-md border border-border bg-surface-2/60 px-2.5 py-2 font-mono text-[11px] outline-none placeholder:text-muted/60 focus:border-accent/60"
+            />
+            <span className="mt-1.5 block text-[11px] leading-relaxed text-muted">
+              Este modo instala un paquete del repositorio de winget; no puede deducir el identificador a partir del
+              nombre del archivo .exe.
+            </span>
+          </label>
+        )}
 
         {item.mode === "custom" && (
           <label className="block">

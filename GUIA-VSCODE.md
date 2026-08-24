@@ -15,17 +15,22 @@ cd instalador-por-usuario
 bun install
 ```
 
-Luego, en VS Code: **Terminal → Run Task…** y ejecuta en este orden:
-
-1. **`1. Web (Vite, puerto 4400)`** — levanta la interfaz web en http://localhost:4400
-2. **`2. Escritorio (Electron)`** — abre la ventana de la app cargando esa interfaz
-
-O desde la terminal, en dos consolas:
+Luego, desde la terminal, ejecuta un solo comando para iniciar la interfaz web y Electron:
 
 ```bash
-bun run dev --port 4400        # consola 1: web
-bun run dev:desktop            # consola 2: Electron (usa WEBSITE_URL=http://localhost:4400 por defecto en las tareas)
+bun run dev:desktop            # web + Electron, usa http://localhost:3000 por defecto
 ```
+
+Si necesitas usar otro puerto, define `WEBSITE_URL` antes de iniciar Electron. Por ejemplo,
+en PowerShell:
+
+```powershell
+$env:WEBSITE_URL = "http://localhost:4400"
+bun run dev:desktop
+```
+
+También puedes usar las tareas de VS Code para iniciar la web y Electron por separado cuando
+necesites depurarlos individualmente.
 
 ## Generar el instalador .exe (en Windows)
 

@@ -15,6 +15,7 @@ export interface QueueItem {
   mode: InstallMode;
   targetDir: string;
   customArgs: string;
+  wingetId: string;
   timeoutMinutes: number;
   jobId?: string;
 }
@@ -92,6 +93,7 @@ export function InstallerProvider({ children }: { children: React.ReactNode }) {
           mode: detected.supportedModes[0] ?? "custom",
           targetDir: "",
           customArgs: detected.engine === "unknown" ? "/S /norestart" : "",
+          wingetId: "",
           timeoutMinutes: 20,
         }));
       return [...prev, ...additions];
@@ -149,6 +151,7 @@ export function InstallerProvider({ children }: { children: React.ReactNode }) {
           mode: item.mode,
           targetDir: item.targetDir || undefined,
           customArgs: item.customArgs || undefined,
+          wingetId: item.wingetId.trim() || undefined,
         },
       };
       setBusy(true);

@@ -9,7 +9,7 @@ call these named verbs. Never rename or remove them; their internals are free to
 
 | Command | Purpose |
 | --- | --- |
-| `bun run dev` / `dev:desktop` / `dev:mobile` | Start dev server per platform |
+| `bun run dev` / `dev:desktop` / `dev:mobile` | Start dev server per platform (`dev:desktop` starts web + Electron) |
 | `bun run build` | Build all packages |
 | `bun run start` | Start (or restart) the production server under pm2 (idempotent) |
 | `bun run stop` | Stop the production server |
@@ -80,6 +80,15 @@ Secrets and credentials live in `.env` at the project root (gitignored). Vite's 
 ## Desktop UI
 
 The desktop app has no separate renderer by default. It loads the web app from `packages/web`; desktop-specific UI should live in `packages/web/src/web/` and be gated with `useDesktop()` / `window.electronAPI`. Keep `packages/desktop` for Electron window setup, menus/tray/shortcuts, IPC handlers, native OS APIs, and packaging. Only add a separate desktop renderer when the product intentionally needs a different desktop-only UI architecture.
+
+For desktop development, run:
+
+```sh
+bun run dev:desktop
+```
+
+This starts the web Vite server and Electron together. The web server uses the port from
+`WEBSITE_URL`, defaulting to `http://localhost:3000`.
 
 ## Servers
 

@@ -8,9 +8,20 @@ import assetOptimizerPlugin from "./vite/__plugins/asset-optimizer-plugin";
 
 const root = path.resolve(__dirname, "../..");
 
+function getWebsitePort(websiteUrl: string | undefined): number {
+	if (!websiteUrl) return 3000;
+
+	try {
+		return Number(new URL(websiteUrl).port || 3000);
+	} catch {
+		return 3000;
+	}
+}
+
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, root, '');
 	Object.assign(process.env, env);
+	const websitePort = getWebsitePort(process.env.WEBSITE_URL);
 
 	return {
 		// All env files live at the repo root — keep Vite's own env loading there too,
@@ -23,6 +34,8 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 		server: {
+			port: websitePort,
+			strictPort: true,
 			allowedHosts: true,
 			hmr: { overlay: false, },
 			cors: false

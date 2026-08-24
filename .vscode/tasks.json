@@ -2,15 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "1. Web (Vite, puerto 4400)",
-			"type": "shell",
-			"command": "bun run dev --port 4400",
-			"isBackground": true,
-			"problemMatcher": [],
-			"presentation": { "group": "dev", "reveal": "always" }
-		},
-		{
-			"label": "2. Escritorio (Electron)",
+			"label": "1. Escritorio completo (web + Electron, puerto 4400)",
 			"type": "shell",
 			"command": "bun run dev:desktop",
 			"options": {
@@ -18,6 +10,14 @@
 					"WEBSITE_URL": "http://localhost:4400"
 				}
 			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": { "group": "dev", "reveal": "always" }
+		},
+		{
+			"label": "Web (Vite, puerto 4400; solo navegador)",
+			"type": "shell",
+			"command": "bun run dev --port 4400",
 			"isBackground": true,
 			"problemMatcher": [],
 			"presentation": { "group": "dev", "reveal": "always" }
