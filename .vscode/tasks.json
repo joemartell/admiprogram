@@ -1,0 +1,40 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "1. Web (Vite, puerto 4400)",
+			"type": "shell",
+			"command": "bun run dev --port 4400",
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": { "group": "dev", "reveal": "always" }
+		},
+		{
+			"label": "2. Escritorio (Electron)",
+			"type": "shell",
+			"command": "bun run dev:desktop",
+			"options": {
+				"env": {
+					"WEBSITE_URL": "http://localhost:4400"
+				}
+			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": { "group": "dev", "reveal": "always" }
+		},
+		{
+			"label": "Empaquetar .exe (electron-builder)",
+			"type": "shell",
+			"command": "bun run --cwd packages/desktop dist",
+			"problemMatcher": [],
+			"presentation": { "group": "build", "reveal": "always" }
+		},
+		{
+			"label": "Verificar tipos (typecheck)",
+			"type": "shell",
+			"command": "bun run typecheck",
+			"problemMatcher": ["$tsc"],
+			"presentation": { "group": "build", "reveal": "silent" }
+		}
+	]
+}
