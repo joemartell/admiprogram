@@ -17,6 +17,15 @@ const MAX_SCAN = 96 * 1024 * 1024; // no husmear más de 96 MiB
 const OLE_MAGIC = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
 const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 
+/** Marcadores propios de los lanzadores InstallShield antiguos (InstallScript). */
+export const LEGACY_INSTALLSHIELD_MARKERS = new Set([
+  "InstallShield Setup Player V11",
+  "InstallShield Setup Player 2K2",
+  "InstallShield Silent",
+  "ispro7",
+  "engine32.cab",
+]);
+
 export const ENGINE_LABELS: Record<EngineId, string> = {
   msi: "Windows Installer (MSI)",
   inno: "Inno Setup",
@@ -40,6 +49,11 @@ const MARKERS: { marker: string; engine: EngineId; weight: number }[] = [
   { marker: "NullsoftInst", engine: "nsis", weight: 0.9 },
   { marker: "Nullsoft Install System", engine: "nsis", weight: 0.9 },
   { marker: "InstallShield", engine: "installshield", weight: 0.85 },
+  { marker: "InstallShield Setup Player V11", engine: "installshield", weight: 0.98 },
+  { marker: "InstallShield Setup Player 2K2", engine: "installshield", weight: 0.98 },
+  { marker: "InstallShield Silent", engine: "installshield", weight: 0.9 },
+  { marker: "ispro7", engine: "installshield", weight: 0.9 },
+  { marker: "engine32.cab", engine: "installshield", weight: 0.85 },
   { marker: "IsSelfExtract", engine: "installshield", weight: 0.8 },
   { marker: ".wixburn", engine: "burn", weight: 0.95 },
   { marker: "WixBundle", engine: "burn", weight: 0.85 },
@@ -60,6 +74,10 @@ interface ScanResult {
   hits: Map<string, { engine: EngineId; weight: number }>;
   elevation: ElevationHint;
   headMagic: Buffer;
+}
+
+function containsText(asciiWindow: string, marker: string, utf16Window: string): boolean {
+  return asciiWindow.includes(marker) || utf16Window.includes(marker);
 }
 
 async function scanFile(filePath: string, sizeBytes: number): Promise<ScanResult> {
@@ -84,16 +102,20 @@ async function scanFile(filePath: string, sizeBytes: number): Promise<ScanResult
 
       const window = Buffer.concat([tail, buf.subarray(0, bytesRead)]);
       const text = window.toString("latin1");
+      // Los recursos de muchos InstallShield antiguos están en UTF-16LE.
+      // Buscar solo ASCII hacía que un install.exe válido terminara como
+      // "motor no identificado".
+      const utf16Text = window.toString("utf16le");
 
       for (const { marker, engine, weight } of MARKERS) {
-        if (!hits.has(marker) && text.includes(marker)) {
+        if (!hits.has(marker) && containsText(text, marker, utf16Text)) {
           hits.set(marker, { engine, weight });
         }
       }
 
       if (elevation !== "requireAdministrator") {
         for (const { marker, level } of ELEVATION_MARKERS) {
-          if (text.includes(marker)) {
+          if (containsText(text, marker, utf16Text)) {
             // requireAdministrator manda sobre el resto
             if (level === "requireAdministrator" || elevation === "unknown") elevation = level;
           }
@@ -110,8 +132,15 @@ async function scanFile(filePath: string, sizeBytes: number): Promise<ScanResult
   return { hits, elevation, headMagic };
 }
 
-function modesFor(engine: EngineId, blocked: boolean): InstallMode[] {
+export function isLegacyInstallShield(evidence: DetectionEvidence[]): boolean {
+  return evidence.some(({ marker }) => LEGACY_INSTALLSHIELD_MARKERS.has(marker));
+}
+
+function modesFor(engine: EngineId, blocked: boolean, evidence: DetectionEvidence[]): InstallMode[] {
   if (blocked) return ["portable", "winget-user", "custom"];
+  if (engine === "installshield" && isLegacyInstallShield(evidence)) {
+    return ["installshield-user", "custom", "winget-user"];
+  }
   switch (engine) {
     case "msi":
     case "inno":
@@ -242,6 +271,11 @@ export async function detectInstaller(filePath: string): Promise<DetectedInstall
   if (engine === "squirrel") {
     notes.push("Los instaladores Squirrel ya instalan en %LOCALAPPDATA% por defecto: no requieren administrador.");
   }
+  if (engine === "installshield" && isLegacyInstallShield(evidence)) {
+    notes.push(
+      "InstallShield clásico/InstallScript: la instalación silenciosa requiere un archivo Setup.iss. La primera ejecución registrará tus elecciones y debes seleccionar una carpeta dentro de tu perfil, por ejemplo %LOCALAPPDATA%\\Programs.",
+    );
+  }
 
   return {
     path: filePath,
@@ -254,7 +288,7 @@ export async function detectInstaller(filePath: string): Promise<DetectedInstall
     evidence,
     elevation,
     blockedByManifest,
-    supportedModes: modesFor(engine, blockedByManifest),
+    supportedModes: modesFor(engine, blockedByManifest, evidence),
     notes,
   };
 }

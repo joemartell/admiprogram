@@ -16,7 +16,7 @@ export type EngineId =
   | "winget"
   | "unknown";
 
-export type InstallMode = "peruser" | "portable" | "winget-user" | "custom";
+export type InstallMode = "peruser" | "installshield-user" | "portable" | "winget-user" | "custom";
 
 export type ElevationHint = "asInvoker" | "highestAvailable" | "requireAdministrator" | "unknown";
 
@@ -170,6 +170,7 @@ export function installerAPI(): InstallerAPI | null {
 
 export const MODE_LABELS: Record<InstallMode, string> = {
   peruser: "Por-usuario silenciosa",
+  "installshield-user": "InstallShield por-usuario",
   portable: "Portable en el perfil",
   "winget-user": "winget ámbito usuario",
   custom: "Personalizada",
@@ -178,6 +179,8 @@ export const MODE_LABELS: Record<InstallMode, string> = {
 export const MODE_DESCRIPTIONS: Record<InstallMode, string> = {
   peruser:
     "Ejecuta el instalador con las banderas oficiales de instalación en el perfil del usuario y sin interfaz. No requiere administrador.",
+  "installshield-user":
+    "Para InstallShield clásico: registra tus elecciones en la primera ejecución y después las reproduce sin elevación desde el perfil del usuario.",
   portable:
     "Extrae o copia el programa en %LOCALAPPDATA%\\Programs y crea un acceso directo en tu menú Inicio. Siempre funciona sin permisos.",
   "winget-user":
