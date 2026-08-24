@@ -252,23 +252,28 @@ function portablePlan({ detected, options }: BuildContext): CommandPlan {
 }
 
 function wingetPlan({ options }: BuildContext): CommandPlan {
-  const id = options.wingetId?.trim() ?? "";
-  const args = [
-    "install",
-    "--id",
-    id,
-    "--exact",
-    "--scope",
-    "user",
-    "--silent",
-    "--accept-package-agreements",
-    "--accept-source-agreements",
-    "--disable-interactivity",
-  ];
+  const id = options.wingetId?.trim();
+  const args = id
+    ? [
+        "install",
+        "--id",
+        id,
+        "--exact",
+        "--scope",
+        "user",
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+        "--disable-interactivity",
+      ]
+    : [];
+  const preview = id
+    ? `winget ${args.join(" ")}`
+    : "winget install --id <identificador-requerido> --exact --scope user --silent --accept-package-agreements --accept-source-agreements --disable-interactivity";
   return {
     file: "winget",
     args,
-    preview: `winget ${args.join(" ")}`,
+    preview,
     mode: "winget-user",
     engine: "winget",
     requiresAdmin: false,

@@ -117,6 +117,26 @@ export async function runInstall(request: RunRequest): Promise<InstallJob> {
   pushLog(jobId, "sistema", `Comando: ${plan.preview}`, sink);
   for (const warning of plan.warnings) pushLog(jobId, "sistema", `Aviso: ${warning}`, sink);
 
+  const wingetId = request.options.wingetId?.trim();
+  if (plan.mode === "winget-user" && !wingetId) {
+    const outcome = {
+      exitCode: null,
+      status: "fallido" as JobStatus,
+      title: "Falta el identificador del paquete de winget",
+      detail:
+        "No se ejecutó winget porque el identificador está vacío. Un archivo .exe local no contiene necesariamente el ID de su paquete en winget.",
+      suggestions: [
+        "Escribe el ID exacto del paquete, por ejemplo Microsoft.VisualStudioCode.",
+        "Para instalar el .exe seleccionado, usa Por-usuario silenciosa, Portable o Personalizada.",
+      ],
+    };
+    pushLog(jobId, "sistema", outcome.title, sink);
+    job = { ...job, status: outcome.status, exitCode: null, outcome, finishedAt: Date.now(), durationMs: 0 };
+    emitJob(job);
+    sink.end();
+    return job;
+  }
+
   if (plan.requiresAdmin) {
     const outcome = {
       exitCode: null,
