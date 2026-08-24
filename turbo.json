@@ -4,7 +4,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["EXPO_PACKAGER_PROXY_URL"]
+      "passThroughEnv": ["EXPO_PACKAGER_PROXY_URL", "WEBSITE_URL"]
     },
     "build": {
       "dependsOn": ["^build"],

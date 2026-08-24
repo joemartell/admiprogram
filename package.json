@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "cd packages/web && bunx vite",
-    "dev:desktop": "cd packages/desktop && bunx vite",
+    "dev:desktop": "turbo run dev --filter=@template/web --filter=@template/desktop",
     "dev:mobile": "cd packages/mobile && bunx expo start --port 4300",
     "build": "turbo build",
     "build:web": "cd packages/web && bunx vite build",
