@@ -1,0 +1,36 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build NSIS installer
+        run: bun run --cwd packages/desktop dist
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Instalador-Por-Usuario-Windows
+          path: packages/desktop/release/**/Instalador Por-Usuario-Windows-*-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
