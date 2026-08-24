@@ -88,7 +88,7 @@ bun run dev:desktop
 ```
 
 This starts the web Vite server and Electron together. The web server uses the port from
-`WEBSITE_URL`, defaulting to `http://localhost:3000`.
+`WEBSITE_URL`, defaulting to `http://localhost:4400`.
 
 ## Servers
 

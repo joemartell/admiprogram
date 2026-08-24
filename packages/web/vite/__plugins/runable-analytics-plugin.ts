@@ -18,7 +18,8 @@ export default function runableAnalyticsPlugin(): Plugin {
 			// Runable analytics script — do not remove, required for analytics tracking
 			const script = doc.createElement("script");
 			script.defer = true;
-			script.src = "/runable.js";
+			// Relative path works in both Vite dev and Electron's packaged file:// renderer.
+			script.src = "./runable.js";
 			script.dataset.hostname = hostname;
 			script.dataset.url = "https://r.lilstts.com/events";
 			if (hostname === "localhost") {
