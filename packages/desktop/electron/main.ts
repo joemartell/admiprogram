@@ -13,8 +13,11 @@ import { registerInstallerIpc } from "./installer/ipc";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const isDev = process.env.NODE_ENV !== "production";
-const WEB_DEV_URL = process.env.WEBSITE_URL ?? "http://localhost:3000";
+// Electron does not set NODE_ENV for an installed application. Use its
+// authoritative packaging flag so the installer never tries to connect to a
+// development server that is not running.
+const isDev = !app.isPackaged;
+const WEB_DEV_URL = process.env.WEBSITE_URL ?? "http://localhost:4400";
 const WEB_DIST = path.join(__dirname, "../web-dist");
 const DEV_LOAD_RETRY_DELAY_MS = 250;
 const DEV_LOAD_MAX_ATTEMPTS = 40;
@@ -68,7 +71,9 @@ function createWindow() {
   if (isDev) {
     void loadDevelopmentUrl();
   } else {
-    win.loadFile(path.join(WEB_DIST, "index.html"));
+    void win.loadFile(path.join(WEB_DIST, "index.html")).catch((error) => {
+      console.error(`Unable to load the packaged web app from ${WEB_DIST}`, error);
+    });
   }
 }
 
