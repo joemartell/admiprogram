@@ -9,12 +9,12 @@ import assetOptimizerPlugin from "./vite/__plugins/asset-optimizer-plugin";
 const root = path.resolve(__dirname, "../..");
 
 function getWebsitePort(websiteUrl: string | undefined): number {
-	if (!websiteUrl) return 3000;
+	if (!websiteUrl) return 4400;
 
 	try {
-		return Number(new URL(websiteUrl).port || 3000);
+		return Number(new URL(websiteUrl).port || 4400);
 	} catch {
-		return 3000;
+		return 4400;
 	}
 }
 
@@ -24,6 +24,9 @@ export default defineConfig(({ mode }) => {
 	const websitePort = getWebsitePort(process.env.WEBSITE_URL);
 
 	return {
+		// Electron loads the packaged renderer through file://, so production
+		// assets must use relative URLs instead of absolute /assets/... paths.
+		base: mode === "production" ? "./" : "/",
 		// All env files live at the repo root — keep Vite's own env loading there too,
 		// so packages/web/.env* files can never shadow the root .env.
 		envDir: root,
