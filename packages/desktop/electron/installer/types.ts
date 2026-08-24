@@ -25,6 +25,8 @@ export type InstallMode =
   | "winget-user" // winget install --scope user
   | "custom"; // línea de comandos editada por el usuario
 
+export type ProtectedOperation = "program-files" | "hklm" | "service";
+
 export type ElevationHint = "asInvoker" | "highestAvailable" | "requireAdministrator" | "unknown";
 
 export interface DetectionEvidence {
@@ -50,6 +52,8 @@ export interface DetectedInstaller {
   supportedModes: InstallMode[];
   /** Advertencias legibles para el usuario. */
   notes: string[];
+  /** Señales estáticas de operaciones que Windows puede proteger. */
+  protectedOperations: ProtectedOperation[];
 }
 
 export interface PlanOptions {

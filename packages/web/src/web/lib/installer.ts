@@ -17,6 +17,7 @@ export type EngineId =
   | "unknown";
 
 export type InstallMode = "peruser" | "installshield-user" | "portable" | "winget-user" | "custom";
+export type ProtectedOperation = "program-files" | "hklm" | "service";
 
 export type ElevationHint = "asInvoker" | "highestAvailable" | "requireAdministrator" | "unknown";
 
@@ -33,6 +34,7 @@ export interface DetectedInstaller {
   blockedByManifest: boolean;
   supportedModes: InstallMode[];
   notes: string[];
+  protectedOperations: ProtectedOperation[];
 }
 
 export interface PlanOptions {
@@ -174,6 +176,12 @@ export const MODE_LABELS: Record<InstallMode, string> = {
   portable: "Portable en el perfil",
   "winget-user": "winget ámbito usuario",
   custom: "Personalizada",
+};
+
+export const PROTECTED_OPERATION_LABELS: Record<ProtectedOperation, string> = {
+  "program-files": "Program Files",
+  hklm: "HKLM",
+  service: "servicios de Windows",
 };
 
 export const MODE_DESCRIPTIONS: Record<InstallMode, string> = {

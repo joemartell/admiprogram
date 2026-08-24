@@ -19,6 +19,7 @@ import {
   installerAPI,
   MODE_DESCRIPTIONS,
   MODE_LABELS,
+  PROTECTED_OPERATION_LABELS,
   STATUS_LABELS,
   statusTone,
   type CommandPlan,
@@ -203,6 +204,7 @@ export function InstallerItem({ item }: { item: QueueItem }) {
           <label className="block">
             <span className="label-xs">Carpeta destino (tu perfil)</span>
             <input
+              aria-label="Carpeta destino (tu perfil)"
               value={item.targetDir}
               onChange={(event) => updateItem(item.key, { targetDir: event.target.value })}
               placeholder={plan?.targetDir ?? "%LOCALAPPDATA%\\Programs\\..."}
@@ -217,6 +219,7 @@ export function InstallerItem({ item }: { item: QueueItem }) {
           <label className="block">
             <span className="label-xs">Límite (min)</span>
             <input
+              aria-label="Límite de instalación en minutos"
               type="number"
               min={1}
               max={180}
@@ -227,10 +230,21 @@ export function InstallerItem({ item }: { item: QueueItem }) {
           </label>
         </div>
 
+        {item.detected.protectedOperations.length > 0 && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3">
+            <p className="text-[12px] font-semibold text-warning">Posibles operaciones protegidas</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted">
+              {item.detected.protectedOperations.map((operation) => PROTECTED_OPERATION_LABELS[operation]).join(", ")}.
+              Si el instalador las ejecuta, Windows puede solicitar administrador.
+            </p>
+          </div>
+        )}
+
         {item.mode === "winget-user" && (
           <label className="block">
             <span className="label-xs">Identificador del paquete winget</span>
             <input
+              aria-label="Identificador del paquete winget"
               value={item.wingetId}
               onChange={(event) => updateItem(item.key, { wingetId: event.target.value })}
               placeholder="Microsoft.VisualStudioCode"
@@ -247,6 +261,7 @@ export function InstallerItem({ item }: { item: QueueItem }) {
           <label className="block">
             <span className="label-xs">Argumentos personalizados</span>
             <input
+              aria-label="Argumentos personalizados"
               value={item.customArgs}
               onChange={(event) => updateItem(item.key, { customArgs: event.target.value })}
               placeholder="/S /D=C:\Users\...\Programs\app"
