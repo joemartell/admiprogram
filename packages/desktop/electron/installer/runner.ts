@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { buildPlan } from "./plan";
 import { interpretExit } from "./outcome";
+import { detectProtectedOperations, mergeProtectedOperations, withProtectionWarnings } from "./protection";
 import { jobLogPath, upsertJob } from "./store";
 import type { CommandPlan, InstallJob, JobStatus, LogLine, RunRequest } from "./types";
 
@@ -58,7 +59,22 @@ function lineSplitter(onLine: (text: string) => void): (chunk: Buffer) => void {
 export function planFor(request: RunRequest, jobId: string): CommandPlan {
   if (!request.detected) throw new Error("Falta el archivo detectado para construir el plan.");
   const suffix = request.options.mode === "winget-user" ? "winget.log" : "instalador.log";
-  return buildPlan(request.detected, request.options, jobLogPath(jobId, suffix));
+  return withProtectionWarnings(buildPlan(request.detected, request.options, jobLogPath(jobId, suffix)), request.detected);
+}
+
+function readOptionalLog(logPath?: string): string {
+  if (!logPath) return "";
+  try {
+    const raw = fs.readFileSync(logPath);
+    return raw[0] === 0xff && raw[1] === 0xfe ? raw.toString("utf16le") : raw.toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+function installShieldResultCode(logPath?: string): number | null {
+  const match = readOptionalLog(logPath).match(/(?:^|\n)\s*ResultCode\s*=\s*(-?\d+)/i);
+  return match ? Number(match[1]) : null;
 }
 
 /** Vista previa del plan sin ejecutar nada. */
@@ -170,6 +186,7 @@ export async function runInstall(request: RunRequest): Promise<InstallJob> {
 
   const finished = await new Promise<InstallJob>((resolve) => {
     let killedByTimeout = false;
+    const processOutput: string[] = [];
 
     const spawnOptions = {
       windowsHide: true,
@@ -191,8 +208,20 @@ export async function runInstall(request: RunRequest): Promise<InstallJob> {
       child.kill();
     }, timeoutMs);
 
-    child.stdout?.on("data", lineSplitter((text) => pushLog(jobId, "stdout", text, sink)));
-    child.stderr?.on("data", lineSplitter((text) => pushLog(jobId, "stderr", text, sink)));
+    child.stdout?.on(
+      "data",
+      lineSplitter((text) => {
+        processOutput.push(text);
+        pushLog(jobId, "stdout", text, sink);
+      }),
+    );
+    child.stderr?.on(
+      "data",
+      lineSplitter((text) => {
+        processOutput.push(text);
+        pushLog(jobId, "stderr", text, sink);
+      }),
+    );
 
     child.on("error", (error) => {
       clearTimeout(timer);
@@ -213,17 +242,24 @@ export async function runInstall(request: RunRequest): Promise<InstallJob> {
 
     child.on("close", (code) => {
       clearTimeout(timer);
+      const setupLog = readOptionalLog(plan.installerLogPath);
+      const reportedInstallShieldCode = plan.engine === "installshield" ? installShieldResultCode(plan.installerLogPath) : null;
+      const reportedCode = reportedInstallShieldCode !== null && reportedInstallShieldCode !== 0 ? reportedInstallShieldCode : code;
+      const detectedOperations = request.detected?.protectedOperations ?? [];
+      const plannedOperations = detectProtectedOperations(`${plan.preview}\n${plan.targetDir ?? ""}`);
+      const observedOperations = detectProtectedOperations(`${processOutput.join("\n")}\n${setupLog}`);
+      const protectedOperations = mergeProtectedOperations(detectedOperations, plannedOperations, observedOperations);
       const outcome = entry.cancelled
         ? {
-            exitCode: code,
+            exitCode: reportedCode,
             status: "cancelado" as JobStatus,
             title: "Cancelado por el usuario",
             detail: "El proceso se detuvo desde la aplicación.",
             suggestions: [],
           }
-        : interpretExit(code, plan.engine, killedByTimeout);
-      pushLog(jobId, "sistema", `Proceso finalizado con código ${code} — ${outcome.title}`, sink);
-      resolve({ ...job, status: outcome.status, exitCode: code, outcome });
+        : interpretExit(reportedCode, plan.engine, killedByTimeout, protectedOperations);
+      pushLog(jobId, "sistema", `Proceso finalizado con código ${reportedCode} — ${outcome.title}`, sink);
+      resolve({ ...job, status: outcome.status, exitCode: reportedCode, outcome });
     });
   });
 

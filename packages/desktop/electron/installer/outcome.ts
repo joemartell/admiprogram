@@ -3,6 +3,8 @@
  * legible, con sugerencias cuando el fallo es por falta de administrador.
  */
 import type { EngineId, JobOutcome, JobStatus } from "./types";
+import type { ProtectedOperation } from "./types";
+import { isPrivilegeFailureCode, PROTECTED_OPERATION_LABELS } from "./protection";
 
 const ALTERNATIVAS = [
   "Prueba el modo portable: extrae el programa en %LOCALAPPDATA%\\Programs y crea un acceso directo en tu menú Inicio.",
@@ -70,6 +72,18 @@ const MSI_CODES: Record<number, CodeInfo> = {
     title: "El paquete exige privilegios de máquina",
     detail:
       "Código 1925. El MSI no fue construido con soporte por-usuario, así que MSIINSTALLPERUSER=1 no puede aplicarse: solo admite instalación para todos los usuarios.",
+    suggestions: ALTERNATIVAS,
+  },
+  [-51]: {
+    status: "requiere-admin",
+    title: "InstallShield no pudo crear la carpeta de destino",
+    detail: "InstallShield devolvió -51: la carpeta solicitada no pudo crearse con los permisos actuales.",
+    suggestions: ALTERNATIVAS,
+  },
+  [-52]: {
+    status: "requiere-admin",
+    title: "InstallShield no pudo acceder a una ruta protegida",
+    detail: "InstallShield devolvió -52: no pudo acceder a un archivo o carpeta con los permisos actuales.",
     suggestions: ALTERNATIVAS,
   },
   1730: {
@@ -157,7 +171,12 @@ const INNO_CODES: Record<number, CodeInfo> = {
   },
 };
 
-export function interpretExit(code: number | null, engine: EngineId, killedByTimeout = false): JobOutcome {
+export function interpretExit(
+  code: number | null,
+  engine: EngineId,
+  killedByTimeout = false,
+  protectedOperations: ProtectedOperation[] = [],
+): JobOutcome {
   if (killedByTimeout) {
     return {
       exitCode: code,
@@ -176,6 +195,21 @@ export function interpretExit(code: number | null, engine: EngineId, killedByTim
       title: "El proceso terminó sin código de salida",
       detail: "El instalador fue interrumpido antes de reportar un resultado.",
       suggestions: [],
+    };
+  }
+
+  if (protectedOperations.length > 0 && isPrivilegeFailureCode(code)) {
+    const areas = protectedOperations.map((operation) => PROTECTED_OPERATION_LABELS[operation]).join(", ");
+    return {
+      exitCode: code,
+      status: "requiere-admin",
+      title: "El instalador intentó una operación protegida",
+      detail: `El proceso terminó con código ${code} y contiene señales relacionadas con ${areas}. Windows no permite convertir esas operaciones en por-usuario desde esta aplicación.`,
+      suggestions: [
+        "Selecciona una carpeta dentro de %LOCALAPPDATA%\\Programs si el asistente permite cambiar el destino.",
+        "Busca una versión portable, per-user, MSIX o un paquete winget con --scope user.",
+        "Si necesita servicios o HKLM, solicita al área de TI una instalación administrativa explícita.",
+      ],
     };
   }
 

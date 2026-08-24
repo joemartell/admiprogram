@@ -11,6 +11,7 @@ import type {
   EngineId,
   InstallMode,
 } from "./types";
+import { detectProtectedOperations } from "./protection";
 
 const CHUNK = 1024 * 1024; // 1 MiB
 const MAX_SCAN = 96 * 1024 * 1024; // no husmear más de 96 MiB
@@ -74,6 +75,7 @@ interface ScanResult {
   hits: Map<string, { engine: EngineId; weight: number }>;
   elevation: ElevationHint;
   headMagic: Buffer;
+  protectedOperations: Set<ReturnType<typeof detectProtectedOperations>[number]>;
 }
 
 function containsText(asciiWindow: string, marker: string, utf16Window: string): boolean {
@@ -84,6 +86,7 @@ async function scanFile(filePath: string, sizeBytes: number): Promise<ScanResult
   const hits = new Map<string, { engine: EngineId; weight: number }>();
   let elevation: ElevationHint = "unknown";
   const headMagic = Buffer.alloc(8);
+  const protectedOperations = new Set<ReturnType<typeof detectProtectedOperations>[number]>();
 
   const handle = await fs.open(filePath, "r");
   try {
@@ -107,6 +110,10 @@ async function scanFile(filePath: string, sizeBytes: number): Promise<ScanResult
       // "motor no identificado".
       const utf16Text = window.toString("utf16le");
 
+      for (const operation of detectProtectedOperations(`${text}\n${utf16Text}`)) {
+        protectedOperations.add(operation);
+      }
+
       for (const { marker, engine, weight } of MARKERS) {
         if (!hits.has(marker) && containsText(text, marker, utf16Text)) {
           hits.set(marker, { engine, weight });
@@ -129,7 +136,7 @@ async function scanFile(filePath: string, sizeBytes: number): Promise<ScanResult
     await handle.close();
   }
 
-  return { hits, elevation, headMagic };
+  return { hits, elevation, headMagic, protectedOperations };
 }
 
 export function isLegacyInstallShield(evidence: DetectionEvidence[]): boolean {
@@ -171,6 +178,7 @@ export async function detectInstaller(filePath: string): Promise<DetectedInstall
   const notes: string[] = [];
   const evidence: DetectionEvidence[] = [];
   let elevation: ElevationHint = "unknown";
+  let protectedOperations: ReturnType<typeof detectProtectedOperations> = [];
 
   const archiveExts = [".zip", ".7z", ".rar", ".tar", ".gz"];
 
@@ -203,6 +211,7 @@ export async function detectInstaller(filePath: string): Promise<DetectedInstall
   if (scannable && stat.size > 0) {
     const scan = await scanFile(filePath, stat.size);
     elevation = scan.elevation;
+    protectedOperations = [...scan.protectedOperations];
 
     if (extension === ".msi" && !scan.headMagic.subarray(0, 8).equals(OLE_MAGIC)) {
       notes.push("La extensión es .msi pero el archivo no tiene la firma OLE esperada; puede estar dañado.");
@@ -276,6 +285,16 @@ export async function detectInstaller(filePath: string): Promise<DetectedInstall
       "InstallShield clásico/InstallScript: la instalación silenciosa requiere un archivo Setup.iss. La primera ejecución registrará tus elecciones y debes seleccionar una carpeta dentro de tu perfil, por ejemplo %LOCALAPPDATA%\\Programs.",
     );
   }
+  for (const operation of protectedOperations) {
+    const labels = {
+      "program-files": "Program Files",
+      hklm: "HKLM",
+      service: "servicios de Windows",
+    } as const;
+    notes.push(
+      `El archivo contiene referencias a ${labels[operation]}. La aplicación no puede convertir esa operación en una operación por-usuario; si el instalador la ejecuta, Windows puede requerir administrador.`,
+    );
+  }
 
   return {
     path: filePath,
@@ -290,6 +309,7 @@ export async function detectInstaller(filePath: string): Promise<DetectedInstall
     blockedByManifest,
     supportedModes: modesFor(engine, blockedByManifest, evidence),
     notes,
+    protectedOperations,
   };
 }
 
@@ -313,6 +333,7 @@ export async function detectMany(paths: string[]): Promise<DetectedInstaller[]> 
         blockedByManifest: false,
         supportedModes: ["custom"],
         notes: [`No se pudo leer el archivo: ${message}`],
+        protectedOperations: [],
       });
     }
   }
