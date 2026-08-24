@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "dist-electron"
+    "dist-electron",
+    "web-dist"
   ],
   // PLACEHOLDER — packaged-build deep links (and desktop managed sign-in) DO NOT WORK until this
   // scheme is replaced with the app's real `runable-<applicationId>` (the value main.ts derives at
