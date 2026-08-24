@@ -46,36 +46,25 @@ packages/
       web/
         __main.tsx           Bootstrap (mount + Router) — template-managed
         main.tsx             Entry (composition only)
-        app.tsx              Root component + Wouter routing
-        pages/               Page components
-        queries/             Query/mutation options (one file per feature)
-        components/          UI components
+        app.tsx               Root component + Wouter routing
+        pages/                Page components
+        queries/              Query/mutation options (one file per feature)
+        components/           UI components
         hooks/
-          use-desktop.ts     Desktop detection
+          use-desktop.ts     Electron desktop detection
+          use-colors, use-color-scheme (+ .web)
         lib/
           api.ts             Typed API client (oRPC + TanStack Query utils)
           desktop.ts         Electron API types
-          utils.ts           Shared utilities
-        styles.css           Tailwind CSS entry
-  mobile/                    Expo + React Native + expo-router (thin client, no server/db)
-    app/                     File-based routing
-      (tabs)/                Default themed tab navigator + screens
-    constants/theme.ts       Color tokens (light/dark) + Fonts — recolor to brand
-    hooks/                   use-colors, use-color-scheme (+ .web)
-    queries/                 Data hooks (useX), one file per feature
-    lib/
-      api.ts                 Typed API client (oRPC → @template/web)
-  desktop/                   Electron shell (loads web app from server)
-    electron/
-      main.ts                Editable main process (window, lifecycle) + managed deep-link attach
-      ipc.ts                 Starter IPC handlers (dialog/fs/notification/window) — editable
-      preload.ts             contextBridge API + managed-auth bridge
-    vite.config.ts           Vite config
+          utils.ts            Shared utilities
+        styles.css            Tailwind CSS entry
+  mobile/                     Expo + expo-router (thin client, no server/db)
+  desktop/                    Electron shell (loads packaged web renderer)
 ```
 
 ## Environment Variables
 
-Secrets and credentials live in `.env` at the project root (gitignored). Vite's `loadEnv` loads them into `process.env` at dev/build time (configured in `packages/web/vite.config.ts`). In API code (Hono), use `process.env.YOUR_VAR`. In browser code, only `VITE_`-prefixed vars are exposed via `import.meta.env.VITE_YOUR_VAR`. Drizzle scripts use `bun --env-file=../../.env` to load env vars directly.
+Secrets and credentials live in `.env` at the project root (gitignored). Vite's `loadEnv` loads them into `process.env` at dev/build time (configured in `packages/web/vite.config.ts`). In API code (Hono), use `process.env.YOUR_VAR`. In browser code, only `VITE_`-prefixed vars are exposed via `import.meta.env.VITE_`. Drizzle scripts use `bun --env-file=../../.env` to load env vars directly.
 
 ## Desktop UI
 
@@ -88,7 +77,7 @@ bun run dev:desktop
 ```
 
 This starts the web Vite server and Electron together. The web server uses the port from
-`WEBSITE_URL`, defaulting to `http://localhost:3000`.
+`WEBSITE_URL`, defaulting to `http://localhost:4400`.
 
 ## Servers
 
