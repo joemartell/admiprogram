@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "dist": "vite build && electron-builder",
+    "dist": "bun run --cwd ../.. build:web && bun scripts/prepare-web-dist.ts && vite build && electron-builder",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
